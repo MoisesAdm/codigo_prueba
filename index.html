@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulario con Cálculo y Fetch (AJAX)</title>
+    <!-- Incluyendo Tailwind CSS para un diseño moderno y responsivo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilo para el contenedor principal centrado */
+        .container {
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            background-color: #ffffff;
+        }
+        .message-box {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div class="container">
+        <h1 class="text-2xl font-bold mb-6 text-gray-800 text-center">Formulario de Datos</h1>
+        
+        <!-- El formulario sigue apuntando a backend.php, pero lo interceptaremos con JS -->
+        <form id="dataForm" action="backend.php" method="POST" onsubmit="return validateAndSend(event);">
+            
+            <!-- Campo A (x1) -->
+            <div class="mb-4">
+                <label for="x1" class="block text-sm font-medium text-gray-700">Campo A (x1):</label>
+                <input type="number" id="x1" name="campoA" required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                       placeholder="Ingrese el primer número (1-9)" min="1" max="9">
+            </div>
+
+            <!-- Campo B (x2) -->
+            <div class="mb-4">
+                <label for="x2" class="block text-sm font-medium text-gray-700">Campo B (x2):</label>
+                <input type="number" id="x2" name="campoB" required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                       placeholder="Ingrese el segundo número (1-9)" min="1" max="9">
+            </div>
+
+            <!-- Campo C (x3) - Resultado del Cálculo -->
+            <div class="mb-6">
+                <label for="x3" class="block text-sm font-medium text-gray-700">Campo C (x3 - Resultado):</label>
+                <!-- Este campo será solo de lectura para mostrar el resultado -->
+                <input type="text" id="x3" name="campoC" readonly required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 cursor-not-allowed sm:text-sm"
+                       placeholder="Se calculará automáticamente">
+            </div>
+
+            <!-- Botón de Envío -->
+            <button type="submit" id="submitButton"
+                    class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                SUBMIT (Enviar por AJAX)
+            </button>
+        </form>
+
+        <!-- Contenedor para mostrar mensajes de éxito/error -->
+        <div id="messageContainer"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('dataForm');
+        const x1Input = document.getElementById('x1');
+        const x2Input = document.getElementById('x2');
+        const x3Input = document.getElementById('x3');
+        const messageContainer = document.getElementById('messageContainer');
+        const submitButton = document.getElementById('submitButton');
+
+        // Función para mostrar mensajes de forma amigable (sustituye a alert())
+        function showMessage(message, type = 'success') {
+            messageContainer.innerHTML = ''; // Limpiar mensajes anteriores
+            const div = document.createElement('div');
+            
+            let bgColor = 'bg-green-100 border-green-400 text-green-700';
+            if (type === 'error') {
+                bgColor = 'bg-red-100 border-red-400 text-red-700';
+            } else if (type === 'info') {
+                bgColor = 'bg-blue-100 border-blue-400 text-blue-700';
+            }
+
+            div.className = `message-box border ${bgColor}`;
+            div.textContent = message;
+            messageContainer.appendChild(div);
+        }
+
+        // Función de Validación, Cálculo y Envío por AJAX
+        async function validateAndSend(event) {
+            event.preventDefault(); // <-- CRUCIAL: Previene el envío tradicional del formulario
+
+            const x1 = parseInt(x1Input.value);
+            const x2 = parseInt(x2Input.value);
+
+            // 1. Validación de entradas
+            if (isNaN(x1) || isNaN(x2) || x1Input.value === "" || x2Input.value === "") {
+                showMessage("Por favor, ingrese valores numéricos válidos en Campo A y Campo B.", 'error');
+                return false;
+            }
+
+            // Validación de rango
+            if (x1 < 1 || x1 > 9 || x2 < 1 || x2 > 9) {
+                showMessage("Los valores de Campo A y Campo B deben estar entre 1 y 9.", 'error');
+                return false;
+            }
+
+            // 2. Cálculo: x1 + x2 = x3
+            const x3 = x1 + x2;
+            x3Input.value = x3; // Asignamos el resultado al Campo C
+
+            // 3. Recolectar datos y preparar el envío (FormData simula el envío POST de un formulario)
+            const formData = new FormData(form);
+            
+            submitButton.disabled = true; // Deshabilitar el botón durante el envío
+            submitButton.textContent = 'Enviando...';
+            showMessage('Enviando datos al servidor...', 'info');
+
+            try {
+                // 4. Enviar datos a backend.php usando fetch (AJAX)
+                const response = await fetch('backend.php', {
+                    method: 'POST',
+                    body: formData // Usamos FormData para emular la solicitud de formulario POST que PHP espera
+                });
+
+                // PHP responde con JSON, por lo que decodificamos la respuesta
+                const data = await response.json(); 
+
+                // 5. Manejar la respuesta del servidor
+                if (response.ok && data.success) {
+                    showMessage(`✅ Éxito: ${data.message}`, 'success');
+                    // Puedes limpiar el formulario si el envío fue exitoso
+                    form.reset();
+                    x3Input.value = '';
+                } else {
+                    // Si el servidor retorna un error (código 4xx o 5xx) o success=false
+                    showMessage(`❌ Error del servidor: ${data.message || 'Error desconocido al guardar.'}`, 'error');
+                }
+
+            } catch (error) {
+                console.error('Error de red/conexión:', error);
+                showMessage("❌ Error de conexión con el servidor. Verifica que 'backend.php' esté activo.", 'error');
+            } finally {
+                // Habilitar el botón nuevamente
+                submitButton.disabled = false;
+                submitButton.textContent = 'SUBMIT (Enviar por AJAX)';
+            }
+        }
+
+        // Simplemente para asegurar que el cálculo se hace en tiempo real
+        x1Input.addEventListener('input', () => {
+             const x1 = parseInt(x1Input.value);
+             const x2 = parseInt(x2Input.value);
+             if (!isNaN(x1) && !isNaN(x2) && x1 >= 1 && x1 <= 9 && x2 >= 1 && x2 <= 9) {
+                 x3Input.value = x1 + x2;
+             } else {
+                 x3Input.value = '';
+             }
+        });
+        
+        x2Input.addEventListener('input', () => {
+             const x1 = parseInt(x1Input.value);
+             const x2 = parseInt(x2Input.value);
+             if (!isNaN(x1) && !isNaN(x2) && x1 >= 1 && x1 <= 9 && x2 >= 1 && x2 <= 9) {
+                 x3Input.value = x1 + x2;
+             } else {
+                 x3Input.value = '';
+             }
+        });
+    </script>
+</body>
+</html>
